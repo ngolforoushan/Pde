@@ -2,7 +2,7 @@
   "profiles": {
     "Pde": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\MohammadData\\DataSample1.txt 5 2"
+      "commandLineArgs": "C:\\MohammadData\\DataSample1.txt 5 80"
     }
   }
 }
