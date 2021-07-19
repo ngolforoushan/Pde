@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Numpy;
+using System;
 
 namespace Pde
 {
@@ -14,22 +15,66 @@ namespace Pde
 
             var JN = InitJNData();
             var data = new Parameters(); //LoadData(datasetPath);
-            var temp = CalculatePde(data, JN, x, t);
+            var tempExplicit = CalculatePdeExplicit(data, x, t);
+            var tempImplicit = CalculatePdeImplicit(data, x, t);
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine($"Tempture in requested point and time is {tempExplicit}");
+            Console.WriteLine($"Tempture in requested point and time is {tempImplicit}");
+            Console.WriteLine("------------------------------------------------");
+
         }
 
-        private static double CalculatePde(Parameters data, double[][] t, ushort x, ushort y)
+        private static double CalculatePdeExplicit(Parameters parmeters, ushort x, ushort t)
         {
-            var alpha = data.K / (data.BarDensitiy * data.CP);
-            var m = alpha * data.deltaT / Math.Pow(data.deltaX, 2);
-            var mm = 4 * data.H * alpha * data.deltaT / (data.K * data.BarDiameter);
-            for (int n = 0; n <= y; n++)
+            var JN = InitJNData();
+            var alpha = parmeters.K / (parmeters.BarDensitiy * parmeters.CP);
+            var m = alpha * parmeters.deltaT / Math.Pow(parmeters.deltaX, 2);
+            var mm = 4 * parmeters.H * alpha * parmeters.deltaT / (parmeters.K * parmeters.BarDiameter);
+            for (int n = 0; n <= t; n++)
             {
                 for (int j = 1; j < 10; j++)
                 {
-                    t[j][n + 1] = t[j][n] + (m * (t[j + 1][n] - (2 * t[j][n]) + t[j - 1][n]))-(mm*(t[j][n]-data.InfinitTempeture));
+                    JN[j][n + 1] = JN[j][n] + (m * (JN[j + 1][n] - (2 * JN[j][n]) + JN[j - 1][n])) - (mm * (JN[j][n] - parmeters.InfinitTempeture));
                 }
             }
-            return t[x][y];
+            return JN[x][t];
+        }
+
+        private static double CalculatePdeImplicit(Parameters parmeters, ushort x, ushort t)
+        {
+            var JN = InitJNData();
+            var alpha = parmeters.K / (parmeters.BarDensitiy * parmeters.CP);
+            double a = (Math.Pow(parmeters.deltaX, 2) / alpha * parmeters.deltaT) + 2;
+            double m = 4 * parmeters.H * Math.Pow(parmeters.deltaX, 2) / (parmeters.K * parmeters.BarDiameter);
+            double mm = Math.Pow(parmeters.deltaX, 2) / alpha * parmeters.deltaT;
+            for (int nn = 0; nn <= t; nn++)
+            {
+                double mmm = (m * (JN[1][nn] - parmeters.InfinitTempeture)) - (mm * JN[1][nn]);
+                double d1 = mmm - 20;
+                double d2 = mmm;
+                double d3 = mmm - 100;
+                var MatrxiA = np.array(new double[] {
+            a, 1, 0, 0, 0, 0, 0, 0, 0,
+            1, a, 1, 0, 0, 0, 0, 0, 0,
+            0, 1, a, 1, 0, 0, 0, 0, 0,
+            0, 0, 1, a, 1, 0, 0, 0, 0,
+            0, 0, 0, 1, a, 1, 0, 0, 0,
+            0, 0, 0, 0, 1, a, 1, 0, 0,
+            0, 0, 0, 0, 0, 1, a, 1, 0,
+            0, 0, 0, 0, 0, 0, 1, a, 0,
+            0, 0, 0, 0, 0, 0, 0, 1, a,
+            }).reshape(9, 9);
+                var InvertedMatrixA = np.linalg.inv(MatrxiA);
+                var MatrixB = np.array(new double[] { d1, d2, d2, d2, d2, d2, d2, d2, d3 }).reshape(9, 1);
+                var res = np.matmul(InvertedMatrixA, MatrixB);
+                for (int jj = 1; jj < 9; jj++)
+                {
+                    
+                    JN[jj][nn+1] = res[jj].asscalar<double>();
+                }
+            }
+            DebugJN(JN);
+            return JN[x][t];
         }
 
         private static Double[][] InitJNData()
@@ -57,6 +102,7 @@ namespace Pde
 
         private static void DebugJN(double[][] data)
         {
+            Console.WriteLine("############################################");
             for (int j = 0; j < data.Length; j++)
             {
                 Console.WriteLine();
@@ -64,6 +110,7 @@ namespace Pde
                 {
                     Console.Write($"[{data[j][n]}]");
                 }
+                Console.WriteLine("############################################");
             }
         }
 
